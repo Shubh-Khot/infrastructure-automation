@@ -1,0 +1,70 @@
+name: Infrastructure CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: terraform
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform
+
+  ansible:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Ansible Syntax Check
+        run: ansible-playbook --syntax-check ansible/site.yml
+
+  cloudformation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install cfn-lint
+        run: pip install cfn-lint
+
+      - name: Validate CloudFormation
+        run: cfn-lint cloudformation/*.yaml
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
